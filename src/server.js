@@ -5,10 +5,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { config } from './config.js';
 import './db.js';
-import { bus, startPollers, refreshProject, refreshGit, runHealthCheck } from './live.js';
+import { bus, startPollers, refreshProject, refreshGit, refreshGithubOwner, runHealthCheck } from './live.js';
 import { scanRepos } from './scan.js';
 import * as P from './projects.js';
 import { q } from './db.js';
+import * as GH from './githubAuth.js';
 import { containerAction, containerLogs } from './collectors/docker.js';
 
 const publicDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
@@ -55,11 +56,45 @@ function sse(req, res) {
 
 const structure = () => bus.emit('event', { t: 'structure' });
 
+// Settings writes carry credentials: refuse cross-site requests (CSRF) by requiring a same-origin Origin and a JSON body.
+function guardSettings(req) {
+  const origin = req.headers.origin;
+  if (origin && new URL(origin).host !== req.headers.host) throw Object.assign(new Error('cross-origin request refused'), { status: 403 });
+  if (req.method !== 'DELETE' && !String(req.headers['content-type'] || '').startsWith('application/json')) throw Object.assign(new Error('expected application/json'), { status: 415 });
+}
+
+const githubSettings = () => ({ credentials: GH.listCredentials(), owners: P.githubOwners() });
+
 // ---------- routes ----------
 // [method, regex, handler(match, body, req, res)]
 const routes = [
   ['GET', /^\/healthz$/, () => ({ ok: true })],
   ['GET', /^\/api\/state$/, () => P.snapshot()],
+
+  ['GET', /^\/api\/settings\/github$/, () => githubSettings()],
+  ['PUT', /^\/api\/settings\/github\/([^/]+)$/, (m, body, req) => {
+    guardSettings(req);
+    const owner = GH.cleanOwner(m[1]);
+    GH.saveToken(owner, body.token);
+    refreshGithubOwner(owner).catch(() => {});
+    return githubSettings();
+  }],
+  ['DELETE', /^\/api\/settings\/github\/([^/]+)$/, (m, _b, req) => {
+    guardSettings(req);
+    const owner = GH.cleanOwner(m[1]);
+    GH.removeToken(owner);
+    refreshGithubOwner(owner).catch(() => {});
+    return githubSettings();
+  }],
+  // Test a token typed into the form (body.token) or the one already stored for body.owner.
+  ['POST', /^\/api\/settings\/github\/test$/, async (_m, body, req) => {
+    guardSettings(req);
+    const owner = GH.cleanOwner(body.owner);
+    const token = body.token ? GH.cleanToken(body.token) : GH.resolveToken(owner).token;
+    if (!token) throw Object.assign(new Error('No token to test'), { status: 400 });
+    const sample = P.githubOwners().find((o) => o.owner === owner)?.sample;
+    return GH.testToken(token, sample);
+  }],
 
   ['POST', /^\/api\/rescan$/, async () => {
     const r = await scanRepos();

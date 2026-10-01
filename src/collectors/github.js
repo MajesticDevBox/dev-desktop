@@ -1,12 +1,10 @@
 // GitHub collector: open PRs, open issues and latest CI run per repo.
 // Works unauthenticated for public repos (60 req/h) but a token is strongly recommended.
-import { config } from '../config.js';
+import { tokenFor } from '../githubAuth.js';
 
 let pausedUntil = 0;
+export const resetGithubPause = () => (pausedUntil = 0);
 export const githubPaused = () => (pausedUntil > Date.now() ? pausedUntil : 0);
-
-// Per-owner token (GITHUB_TOKENS) with GITHUB_TOKEN as the fallback.
-const tokenFor = (repo) => config.githubTokens[repo.split('/')[0].toLowerCase()] || config.githubToken;
 
 async function gh(path, token) {
   const res = await fetch(`https://api.github.com${path}`, {

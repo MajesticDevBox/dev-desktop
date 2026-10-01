@@ -161,3 +161,15 @@ dialog h2 { margin: 0 0 12px; font-size: 18px; }
   .add-form { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+
+/* settings */
+dialog.wide { width: min(640px, 94vw); max-height: 90vh; overflow-y: auto; }
+dialog h3 { margin: 18px 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+.set-row { display: flex; align-items: center; gap: 8px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; margin-bottom: 6px; }
+.set-row .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.set-row .btn { padding: 3px 10px; font-size: 12px; }
+.set-add { display: grid; grid-template-columns: 1fr 2fr; gap: 8px; }
+.set-note { font-size: 12px; margin: 6px 0 0; }
+.set-result.bad { color: #f87171; }
+.set-result.ok { color: #4ade80; }
+dialog p.muted { white-space: normal; }

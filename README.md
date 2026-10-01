@@ -52,7 +52,8 @@ All optional, set in `.env` (see `.env.example`): `REPOS_PATH`, `PORT`, `GITHUB_
   so the port is published on `127.0.0.1` only and there is no login. Do not expose it beyond localhost without adding auth.
   If you never want start / stop, remove the socket mount; the rest keeps working.
 - `GITHUB_TOKEN` / `GITHUB_TOKENS` stay in `.env` (git-ignored) and are only sent to `api.github.com`.
-- Multiple orgs: set `GITHUB_TOKENS=org1=tokenA,org2=tokenB`. The token is chosen by the repo's owner; `GITHUB_TOKEN` is the fallback.
+- Multiple orgs: open **Settings** in the UI and add one token per org/user (saved in the data volume, never sent back to the browser, tested before saving). Or set `GITHUB_TOKENS=org1=tokenA,org2=tokenB` in `.env`. The token is chosen by the repo's owner; order is saved-for-owner, `.env`-for-owner, saved `*` default, then `GITHUB_TOKEN`.
+- Saved tokens are stored unencrypted in the SQLite volume (like the rest of the app's data, with no login, localhost only). Settings writes refuse cross-origin requests.
 
 ## Develop
 
