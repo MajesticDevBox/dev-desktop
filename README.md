@@ -42,7 +42,7 @@ Open <http://localhost:7070>. It restarts with Docker (`restart: unless-stopped`
 
 ## Configuration
 
-All optional, set in `.env` (see `.env.example`): `REPOS_PATH`, `PORT`, `GITHUB_TOKEN`, `ACTIVE_WINDOW_DAYS`,
+All optional, set in `.env` (see `.env.example`): `REPOS_PATH`, `PORT`, `GITHUB_TOKEN`, `GITHUB_TOKENS`, `ACTIVE_WINDOW_DAYS`,
 `GIT_REFRESH_SECONDS`, `DOCKER_REFRESH_SECONDS`, `HEALTH_REFRESH_SECONDS`, `GITHUB_REFRESH_SECONDS`, `RESCAN_SECONDS`,
 `GIT_CONCURRENCY`.
 
@@ -51,7 +51,8 @@ All optional, set in `.env` (see `.env.example`): `REPOS_PATH`, `PORT`, `GITHUB_
 - The Docker socket is mounted so the dashboard can list and control containers. That is root-equivalent access to your Docker host,
   so the port is published on `127.0.0.1` only and there is no login. Do not expose it beyond localhost without adding auth.
   If you never want start / stop, remove the socket mount; the rest keeps working.
-- `GITHUB_TOKEN` stays in `.env` (git-ignored) and is only sent to `api.github.com`.
+- `GITHUB_TOKEN` / `GITHUB_TOKENS` stay in `.env` (git-ignored) and are only sent to `api.github.com`.
+- Multiple orgs: set `GITHUB_TOKENS=org1=tokenA,org2=tokenB`. The token is chosen by the repo's owner; `GITHUB_TOKEN` is the fallback.
 
 ## Develop
 
