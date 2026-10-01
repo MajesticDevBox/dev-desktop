@@ -5,13 +5,16 @@ import { config } from '../config.js';
 let pausedUntil = 0;
 export const githubPaused = () => (pausedUntil > Date.now() ? pausedUntil : 0);
 
-async function gh(path) {
+// Per-owner token (GITHUB_TOKENS) with GITHUB_TOKEN as the fallback.
+const tokenFor = (repo) => config.githubTokens[repo.split('/')[0].toLowerCase()] || config.githubToken;
+
+async function gh(path, token) {
   const res = await fetch(`https://api.github.com${path}`, {
     headers: {
       accept: 'application/vnd.github+json',
       'user-agent': 'dev-desktop',
       'x-github-api-version': '2022-11-28',
-      ...(config.githubToken ? { authorization: `Bearer ${config.githubToken}` } : {}),
+      ...(token ? { authorization: `Bearer ${token}` } : {}),
     },
     signal: AbortSignal.timeout(10000),
   });
@@ -28,11 +31,12 @@ async function gh(path) {
 
 export async function collectGithub(repo) {
   const out = { ts: Date.now(), repo, error: null };
+  const token = tokenFor(repo);
   try {
     const [info, pulls, runs] = await Promise.all([
-      gh(`/repos/${repo}`),
-      gh(`/repos/${repo}/pulls?state=open&per_page=10`),
-      gh(`/repos/${repo}/actions/runs?per_page=1`).catch(() => null),
+      gh(`/repos/${repo}`, token),
+      gh(`/repos/${repo}/pulls?state=open&per_page=10`, token),
+      gh(`/repos/${repo}/actions/runs?per_page=1`, token).catch(() => null),
     ]);
     out.private = info.private;
     out.defaultBranch = info.default_branch;

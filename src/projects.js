@@ -70,7 +70,7 @@ export function snapshot() {
     projects: listProjects(),
     globalLinks: globalLinks(),
     docker: { available: live.docker.available, error: live.docker.error, other: live.docker.other },
-    meta: { githubToken: !!config.githubToken, hostReposPath: config.hostReposPath, now: Date.now(), startedAt: live.startedAt },
+    meta: { githubToken: !!config.githubToken || Object.keys(config.githubTokens).length > 0, hostReposPath: config.hostReposPath, now: Date.now(), startedAt: live.startedAt },
   };
 }
 
