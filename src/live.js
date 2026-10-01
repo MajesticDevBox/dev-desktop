@@ -5,7 +5,7 @@ import { config } from './config.js';
 import { q } from './db.js';
 import { collectGit } from './collectors/git.js';
 import { dockerAvailable, listContainers, matchContainers } from './collectors/docker.js';
-import { collectGithub, githubPaused } from './collectors/github.js';
+import { collectGithub, githubPaused, resetGithubPause } from './collectors/github.js';
 import { checkUrl, record, summarize } from './collectors/health.js';
 
 export const bus = new EventEmitter();
@@ -123,6 +123,15 @@ export async function refreshGithub(slug, repo) {
   const data = await collectGithub(repo);
   live.github.set(slug, data);
   emit({ t: 'github', slug, data });
+}
+
+/** Re-fetch GitHub data for every project under one owner (after its token changed). */
+export async function refreshGithubOwner(owner) {
+  resetGithubPause();
+  for (const r of projectRows()) {
+    const repo = r.github_repo || live.git.get(r.slug)?.githubRepo;
+    if (repo && (owner === '*' || repo.split('/')[0].toLowerCase() === owner)) await refreshGithub(r.slug, repo).catch(() => {});
+  }
 }
 
 async function githubTick() {

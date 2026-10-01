@@ -282,7 +282,7 @@ function liveSection(p) {
   ${p.missing ? '<div class="err">Folder not found on disk.</div>' : ''}
   ${p.manual ? '<div class="muted">Manual project (no local folder).</div>' : gitRow(p) || ''}
   ${g?.commits?.length ? `<div class="list" style="margin-top:8px">${g.commits.map((c) => `<div class="commit"><code>${esc(c.hash)}</code><span class="msg" title="${esc(c.subject)}">${esc(c.subject)}</span><span class="when">${esc(c.author)} · ${rel(c.at)}</span></div>`).join('')}</div>` : ''}
-  ${p.githubRepo ? `<h3>GitHub · ${esc(p.githubRepo)}</h3><div class="row">${githubBadges(p)}</div>${gh?.prs?.length ? `<div class="list" style="margin-top:8px">${gh.prs.map((r) => `<a class="item" href="${href(r.url)}" target="_blank" rel="noopener"><span class="badge ${r.draft ? '' : 'info'}">#${r.number}${r.draft ? ' draft' : ''}</span><span class="grow">${esc(r.title)}</span><span class="muted">${esc(r.user)}</span></a>`).join('')}</div>` : ''}${!state.meta.githubToken ? '<p class="muted">Set GITHUB_TOKEN in .env for private repos and higher rate limits.</p>' : ''}` : ''}
+  ${p.githubRepo ? `<h3>GitHub · ${esc(p.githubRepo)}</h3><div class="row">${githubBadges(p)}</div>${gh?.prs?.length ? `<div class="list" style="margin-top:8px">${gh.prs.map((r) => `<a class="item" href="${href(r.url)}" target="_blank" rel="noopener"><span class="badge ${r.draft ? '' : 'info'}">#${r.number}${r.draft ? ' draft' : ''}</span><span class="grow">${esc(r.title)}</span><span class="muted">${esc(r.user)}</span></a>`).join('')}</div>` : ''}${!state.meta.githubToken ? '<p class="muted">Add a GitHub token in Settings for private repos and higher rate limits.</p>' : ''}` : ''}
   <h3>Containers</h3>
   ${p.docker.length ? p.docker.map((c) => containerLine(c, true)).join('') : `<div class="muted">${state.docker.available ? 'No containers matched this project. Containers started with docker compose from this folder show up automatically.' : 'Docker socket not connected.'}</div>`}`;
 }
@@ -366,6 +366,7 @@ function closeDrawer() {
 // ---------- dialogs ----------
 function dialog(title, fields, onSubmit, submitLabel = 'Save') {
   const d = $('#dialog');
+  d.className = '';
   d.innerHTML = `<form method="dialog"><h2>${esc(title)}</h2>${fields}<div class="dialog-actions"><button class="btn" type="button" data-action="dialog-cancel">Cancel</button><button class="btn primary" value="ok">${esc(submitLabel)}</button></div></form>`;
   d.querySelector('form').onsubmit = async (e) => {
     e.preventDefault();
@@ -377,6 +378,84 @@ function dialog(title, fields, onSubmit, submitLabel = 'Save') {
   };
   d.showModal();
   d.querySelector('input')?.focus();
+}
+
+// ---------- settings: GitHub access ----------
+const SRC = { saved: 'saved here', env: 'from .env', 'saved-default': 'saved default', 'env-default': '.env default' };
+const ownerLabel = (o) => (o === '*' ? 'Default (any other owner)' : o);
+
+async function openSettings() {
+  const d = $('#dialog');
+  d.className = 'wide';
+  const gh = await api('GET', '/api/settings/github');
+  const owners = gh.owners
+    .map(
+      (o) => `<div class="set-row"><b>${esc(o.owner)}</b><span class="muted grow">${o.repos} repo${o.repos === 1 ? '' : 's'}</span>
+        <span class="badge ${o.tokenFrom ? 'info' : 'warn'}">${o.tokenFrom ? esc(SRC[o.tokenFrom]) : 'no token'}</span>
+        <button class="btn" type="button" data-action="set-fill" data-owner="${esc(o.owner)}">${o.tokenFrom ? 'Replace' : 'Add token'}</button></div>`,
+    )
+    .join('');
+  const creds = gh.credentials
+    .map(
+      (c) => `<div class="set-row"><b>${esc(ownerLabel(c.owner))}</b><code class="muted grow">${esc(c.hint)}</code>
+        <span class="badge ${c.overridden ? 'warn' : ''}" title="${c.overridden ? 'A token saved here takes priority over this one' : ''}">${c.source === 'saved' ? 'saved here' : c.overridden ? '.env (overridden)' : 'from .env'}</span>
+        <button class="btn" type="button" data-action="set-test" data-owner="${esc(c.owner)}">Test</button>
+        ${c.source === 'saved' ? `<button class="btn" type="button" data-action="set-remove" data-owner="${esc(c.owner)}">Remove</button>` : ''}</div>`,
+    )
+    .join('');
+  d.innerHTML = `<h2>Settings · GitHub access</h2>
+    <p class="muted">Add one token per GitHub org or user. Each repo uses the token matching its owner; the <b>*</b> default covers everything else. Tokens are stored in this app's data volume and are never sent back to the browser.</p>
+    <h3>Owners in your projects</h3>${owners || '<p class="muted">No GitHub repos detected yet.</p>'}
+    <h3>Configured tokens</h3>${creds || '<p class="muted">None yet.</p>'}
+    <h3>Add or replace a token</h3>
+    <form id="set-form" autocomplete="off">
+      <div class="set-add">
+        <input type="text" name="owner" list="set-owners" placeholder="org or user  (or * for default)" required spellcheck="false">
+        <input type="password" name="token" placeholder="ghp_… or github_pat_…" required spellcheck="false" autocomplete="new-password">
+      </div>
+      <datalist id="set-owners">${gh.owners.map((o) => `<option value="${esc(o.owner)}">`).join('')}<option value="*"></datalist>
+      <p class="muted set-note">Needs read access to repository contents/metadata, pull requests, issues and Actions. Fine-grained tokens are limited to one owner, so add one per org.</p>
+      <p id="set-result" class="set-note set-result" role="status"></p>
+      <div class="dialog-actions"><button class="btn" type="button" data-action="dialog-cancel">Close</button><button class="btn primary">Test &amp; save</button></div>
+    </form>`;
+  d.querySelector('#set-form').onsubmit = async (e) => {
+    e.preventDefault();
+    const fd = Object.fromEntries(new FormData(e.target));
+    const owner = fd.owner.trim().toLowerCase();
+    const out = $('#set-result');
+    out.className = 'set-note set-result';
+    out.textContent = 'Testing…';
+    let t;
+    try {
+      t = await api('POST', '/api/settings/github/test', { owner, token: fd.token });
+    } catch {
+      out.textContent = '';
+      return;
+    }
+    if (!t.ok) {
+      out.className = 'set-note set-result bad';
+      out.textContent = t.error;
+      return;
+    }
+    await api('PUT', `/api/settings/github/${encodeURIComponent(owner)}`, { token: fd.token });
+    toast(t.warning ? `Saved for ${owner} (see warning)` : `Saved token for ${owner}`);
+    await openSettings();
+    if (t.warning) {
+      const r = $('#set-result');
+      r.className = 'set-note set-result bad';
+      r.textContent = t.warning;
+    }
+  };
+  if (!d.open) d.showModal();
+}
+
+async function testStored(owner) {
+  const out = $('#set-result');
+  out.className = 'set-note set-result';
+  out.textContent = `Testing ${owner}…`;
+  const t = await api('POST', '/api/settings/github/test', { owner });
+  out.className = `set-note set-result ${t.ok && !t.warning ? 'ok' : 'bad'}`;
+  out.textContent = !t.ok ? t.error : t.warning || `OK — authenticated as ${t.login}${t.repo ? `, can read ${t.repo}` : ''}`;
 }
 
 // ---------- data loading / live updates ----------
@@ -505,6 +584,18 @@ const actions = {
   async 'del-qlink'(_b, e) {
     e.preventDefault();
     await api('DELETE', `/api/links/${_b.dataset.id}`);
+  },
+  settings: () => openSettings(),
+  'set-fill'(b) {
+    const f = $('#set-form');
+    f.owner.value = b.dataset.owner;
+    f.token.focus();
+  },
+  'set-test': (b) => testStored(b.dataset.owner),
+  async 'set-remove'(b) {
+    if (!confirm(`Remove the saved token for ${b.dataset.owner}?`)) return;
+    await api('DELETE', `/api/settings/github/${encodeURIComponent(b.dataset.owner)}`);
+    await openSettings();
   },
   'dialog-cancel'() {
     $('#dialog').close();

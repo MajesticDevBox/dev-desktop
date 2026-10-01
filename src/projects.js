@@ -4,6 +4,7 @@ import { config } from './config.js';
 import { q, tx } from './db.js';
 import { live } from './live.js';
 import { summarize } from './collectors/health.js';
+import { anyToken, resolveToken } from './githubAuth.js';
 
 const SAFE_URL = /^(https?:|vscode:|vscode-insiders:|obsidian:|mailto:|ssh:|git:)/i;
 
@@ -70,7 +71,7 @@ export function snapshot() {
     projects: listProjects(),
     globalLinks: globalLinks(),
     docker: { available: live.docker.available, error: live.docker.error, other: live.docker.other },
-    meta: { githubToken: !!config.githubToken || Object.keys(config.githubTokens).length > 0, hostReposPath: config.hostReposPath, now: Date.now(), startedAt: live.startedAt },
+    meta: { githubToken: anyToken(), hostReposPath: config.hostReposPath, now: Date.now(), startedAt: live.startedAt },
   };
 }
 
@@ -172,4 +173,17 @@ export function seedDefaults() {
     defaults.forEach(([label, url], i) => q.run('INSERT INTO links (project_id, label, url, kind, sort) VALUES (NULL,?,?,?,?)', label, url, 'link', i));
     q.run("INSERT INTO settings (key, value) VALUES ('seeded', '1')");
   });
+}
+
+/** GitHub owners seen across projects, with their repos and which credential (if any) each one uses. */
+export function githubOwners() {
+  const byOwner = new Map();
+  for (const r of q.all('SELECT slug, github_repo FROM projects')) {
+    const repo = r.github_repo || live.git.get(r.slug)?.githubRepo;
+    if (!repo?.includes('/')) continue;
+    const owner = repo.split('/')[0].toLowerCase();
+    if (!byOwner.has(owner)) byOwner.set(owner, []);
+    byOwner.get(owner).push(repo);
+  }
+  return [...byOwner].map(([owner, repos]) => ({ owner, repos: repos.length, sample: repos[0], tokenFrom: resolveToken(owner).source })).sort((a, b) => a.owner.localeCompare(b.owner));
 }
