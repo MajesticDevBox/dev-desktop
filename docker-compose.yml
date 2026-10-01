@@ -1,0 +1,30 @@
+services:
+  dev-desktop:
+    build: .
+    image: dev-desktop:latest
+    container_name: dev-desktop
+    restart: unless-stopped # comes back after Docker Desktop / reboot
+    ports:
+      # bound to localhost only: the Docker socket is mounted, so don't expose this on your LAN
+      - "127.0.0.1:${PORT:-7070}:7070"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      HOST_REPOS_PATH: ${REPOS_PATH:-G:/Github Repos} # used to build vscode:// links and cd commands
+    volumes:
+      # persistent state: projects, links, commands, health history (SQLite)
+      - dev-desktop-data:/data
+      # your repos, read-only
+      - type: bind
+        source: ${REPOS_PATH:-G:/Github Repos}
+        target: /repos
+        read_only: true
+      # lets the dashboard list / start / stop / read logs of containers
+      - /var/run/docker.sock:/var/run/docker.sock
+    extra_hosts:
+      # so health checks on http://localhost:PORT reach services on your machine
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  dev-desktop-data:

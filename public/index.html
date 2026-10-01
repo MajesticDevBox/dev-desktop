@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dev Desktop</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23151b23'/%3E%3Cpath d='M9 11l6 5-6 5M17 22h7' stroke='%2338bdf8' stroke-width='2.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="logo">&gt;_</span> Dev Desktop</div>
+    <div class="search"><input id="search" type="search" placeholder="Search projects, tags, stack…  ( / )" autocomplete="off"></div>
+    <div class="top-actions">
+      <span id="live-pill" class="pill" title="Live connection"><i class="dot"></i><span>connecting</span></span>
+      <span id="docker-pill" class="pill" title="Docker status"><i class="dot"></i><span>docker</span></span>
+      <button class="btn" data-action="refresh-all" title="Refresh all active projects now">Refresh</button>
+      <button class="btn" data-action="rescan" title="Scan the repos folder for new projects">Rescan</button>
+      <button class="btn primary" data-action="add-project">+ Project</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="quicklinks" id="quicklinks" aria-label="Quick links"></section>
+    <section class="stats" id="stats" aria-label="Summary"></section>
+
+    <section class="toolbar">
+      <div class="tabs" id="tabs" role="tablist">
+        <button data-tab="active" role="tab">Active <b id="n-active">0</b></button>
+        <button data-tab="other" role="tab">Archived <b id="n-other">0</b></button>
+        <button data-tab="all" role="tab">All <b id="n-all">0</b></button>
+      </div>
+      <label class="sort">Sort
+        <select id="sort">
+          <option value="recent">Recent activity</option>
+          <option value="name">Name</option>
+          <option value="dirty">Uncommitted first</option>
+          <option value="attention">Needs attention</option>
+        </select>
+      </label>
+    </section>
+
+    <section id="grid" class="grid" aria-live="polite"></section>
+    <p id="empty" class="empty" hidden></p>
+
+    <details class="other-containers" id="other-containers" hidden>
+      <summary>Other containers <b id="n-other-containers"></b></summary>
+      <div id="other-containers-list"></div>
+    </details>
+  </main>
+
+  <aside id="drawer" class="drawer" hidden aria-label="Project details">
+    <div class="drawer-scrim" data-action="close-drawer"></div>
+    <div class="drawer-panel">
+      <div id="drawer-content"></div>
+    </div>
+  </aside>
+
+  <dialog id="dialog"></dialog>
+  <div id="toast" class="toast" role="status" hidden></div>
+  <script src="app.js" type="module"></script>
+</body>
+</html>

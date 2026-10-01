@@ -1,0 +1,14 @@
+{
+  "name": "dev-desktop",
+  "version": "1.0.0",
+  "description": "Persistent Dev Desktop dashboard: active projects, live git/docker/GitHub/health data, tools and links",
+  "type": "module",
+  "private": true,
+  "main": "src/server.js",
+  "engines": { "node": ">=22.13" },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test"
+  }
+}
